@@ -577,6 +577,12 @@ func runAgent(ctx context.Context, agentName, fullsendDir, outputBase, targetRep
 	if orgCfg != nil {
 		secretCfg = orgCfg
 	}
+	// The connections and secrets in use must match the trusted config
+	// revision before any OIDC token is requested (ADR 0155).
+	if err := requireTrustedSecretSources(ctx, secretCfg, absFullsendDir); err != nil {
+		printer.StepFail("Untrusted Vault connection or secret configuration")
+		return err
+	}
 	vaultValues, err := resolveVaultRunnerSecrets(ctx, secretCfg, forgePlatform)
 	if err != nil {
 		printer.StepFail("Failed to resolve Vault-backed runner secrets")

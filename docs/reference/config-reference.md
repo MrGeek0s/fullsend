@@ -1030,6 +1030,17 @@ and Vault-side bound claims cannot prevent that, so keep Vault connection
 settings in reviewed base or default-branch configuration and allow-list the
 Vault address in your deployment's egress policy.
 
+The runner also enforces the trusted-revision rule itself, before it requests
+an OIDC token: the merged `connections` and `secrets` must equal what the
+trusted revision of the `.fullsend` directory declares. The trusted revision
+is read from git objects: the checkout's `HEAD` for an ordinary run, or the
+base commit from the event payload for a pull or merge request run. Any
+difference (an added or replaced connection, changed `vault_secrets`, a
+removed Vault selection, or a `connection: native` reset) fails the run. When
+no trusted revision is available (the directory is not a git checkout, or a
+request run's base commit is missing), a config that declares `connections` or
+`secrets` fails closed; a config that declares neither is unaffected.
+
 **Compatibility.** The top-level `connections` and `secrets` keys need a
 Fullsend CLI that supports them. An older CLI that decodes the managed
 configuration strictly rejects a config that contains either key, so upgrade
