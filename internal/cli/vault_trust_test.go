@@ -184,6 +184,47 @@ func TestRequireTrustedSecretSources_RequestRunUsesBaseCommit(t *testing.T) {
 	}
 }
 
+// A GitHub issue_comment run on a pull request carries PR_NUMBER but no base
+// commit in its payload; its checkout is the default branch tip, so an
+// unchanged config passes and a changed one is still refused.
+func TestRequireTrustedSecretSources_IssueCommentRunUsesHead(t *testing.T) {
+	trusted := vaultConfigYAML("https://vault.example.com")
+	env := map[string]string{"GITHUB_EVENT_NAME": "issue_comment", "PR_NUMBER": "7"}
+
+	withVaultEnv(t, env)
+	dir, _ := trustedConfigCheckout(t, trusted, "")
+	if err := requireTrustedSecretSources(context.Background(), loadWorkingConfig(t, dir), dir); err != nil {
+		t.Fatalf("unchanged config on an issue_comment run: %v", err)
+	}
+
+	dir, _ = trustedConfigCheckout(t, trusted, vaultConfigYAML("https://attacker.example.net"))
+	err := requireTrustedSecretSources(context.Background(), loadWorkingConfig(t, dir), dir)
+	if err == nil || !strings.Contains(err.Error(), "differ from the trusted revision") {
+		t.Fatalf("error = %v, want override refusal", err)
+	}
+}
+
+// A pull or merge request event is recognized from the event name alone, so
+// an unreadable event file cannot turn the request checkout into the trusted
+// revision.
+func TestRequireTrustedSecretSources_RequestEventWithoutBaseFailsClosed(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "missing.json")
+	for name, env := range map[string]map[string]string{
+		"pull_request":        {"GITHUB_EVENT_NAME": "pull_request", "GITHUB_EVENT_PATH": missing},
+		"pull_request_target": {"GITHUB_EVENT_NAME": "pull_request_target"},
+		"merge request":       {"CI_PIPELINE_SOURCE": "merge_request_event"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			withVaultEnv(t, env)
+			dir, _ := trustedConfigCheckout(t, vaultConfigYAML("https://vault.example.com"), "")
+			err := requireTrustedSecretSources(context.Background(), loadWorkingConfig(t, dir), dir)
+			if err == nil || !strings.Contains(err.Error(), "base commit is not available") {
+				t.Fatalf("error = %v, want missing-base refusal", err)
+			}
+		})
+	}
+}
+
 // The guard refuses an untrusted override on its own, before the resolver
 // (the only code that requests an OIDC token) runs, so Vault sees no login.
 func TestRequireTrustedSecretSources_OverrideReachesNoVault(t *testing.T) {

@@ -23,7 +23,8 @@ const secretConfigMaxBytes = 1 << 20
 // The trusted revision is read from git objects, never the working tree. For
 // an ordinary run it is the checkout's HEAD; for a pull or merge request run
 // it is the request's base commit from the event payload, because the
-// checkout may be the request's head.
+// checkout may be the request's head. A GitHub issue_comment run is the
+// exception: its checkout is the default branch tip, so HEAD is trusted.
 //
 // When no trusted revision can be established (the directory is not a git
 // checkout, or a request run's base commit is missing), the run fails closed
@@ -35,7 +36,15 @@ func requireTrustedSecretSources(ctx context.Context, cfg config.ConfigReader, f
 		work = viewSecretSources(reader)
 	}
 
-	trusted, note, err := loadTrustedSecretSources(ctx, fullsendDir, tirithPolicySourceFromEnv(vaultEnvFn))
+	src := tirithPolicySourceFromEnv(vaultEnvFn)
+	if strings.TrimSpace(vaultEnvFn("GITHUB_EVENT_NAME")) == "issue_comment" {
+		// A comment event's payload carries no pull request base commit, and
+		// its workflow checks out the default branch tip (never the request's
+		// head), so HEAD of the config checkout is the trusted revision.
+		src = tirithPolicySource{}
+	}
+
+	trusted, note, err := loadTrustedSecretSources(ctx, fullsendDir, src)
 	if err != nil {
 		return fmt.Errorf("reading the trusted config revision: %w", err)
 	}

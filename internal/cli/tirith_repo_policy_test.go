@@ -147,6 +147,13 @@ func TestTirithPolicySourceFromEnv(t *testing.T) {
 	}
 	assert.True(t, tirithPolicySourceFromEnv(env(map[string]string{"FULLSEND_NOTE_TARGET": "merge_requests"})).requestRun)
 	assert.False(t, tirithPolicySourceFromEnv(env(map[string]string{"PR_NUMBER": "  "})).requestRun)
+	for _, event := range []string{"pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"} {
+		assert.True(t, tirithPolicySourceFromEnv(env(map[string]string{"GITHUB_EVENT_NAME": event})).requestRun, event)
+	}
+	assert.False(t, tirithPolicySourceFromEnv(env(map[string]string{"GITHUB_EVENT_NAME": "issue_comment"})).requestRun)
+	assert.False(t, tirithPolicySourceFromEnv(env(map[string]string{"GITHUB_EVENT_NAME": "push"})).requestRun)
+	assert.True(t, tirithPolicySourceFromEnv(env(map[string]string{"CI_PIPELINE_SOURCE": "merge_request_event"})).requestRun)
+	assert.False(t, tirithPolicySourceFromEnv(env(map[string]string{"CI_PIPELINE_SOURCE": "push"})).requestRun)
 
 	base := strings.Repeat("c", 40)
 	dir := t.TempDir()

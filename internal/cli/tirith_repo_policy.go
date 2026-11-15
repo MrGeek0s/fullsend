@@ -26,6 +26,16 @@ const tirithRepoPolicyMaxBytes = 256 << 10
 // comes from the event payload, so it is checked before it reaches git.
 var gitObjectIDPattern = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
+// githubPullRequestEvents are the GitHub event names whose checkout may be
+// the pull request's head or merge commit. issue_comment is not listed: its
+// workflows run from the default branch, so the checkout is not request content.
+var githubPullRequestEvents = map[string]bool{
+	"pull_request":                true,
+	"pull_request_target":         true,
+	"pull_request_review":         true,
+	"pull_request_review_comment": true,
+}
+
 // tirithPolicySource says which commit holds the copy of the repository
 // policy the run trusts.
 type tirithPolicySource struct {
@@ -51,6 +61,13 @@ func tirithPolicySourceFromEnv(getenv func(string) string) tirithPolicySource {
 		}
 	}
 	if strings.TrimSpace(getenv("FULLSEND_NOTE_TARGET")) == "merge_requests" {
+		src.requestRun = true
+	}
+	// The event name and pipeline source classify a request run even when
+	// the optional variables above are unset and the event file is
+	// unreadable or carries no parseable base commit.
+	if githubPullRequestEvents[strings.TrimSpace(getenv("GITHUB_EVENT_NAME"))] ||
+		strings.TrimSpace(getenv("CI_PIPELINE_SOURCE")) == "merge_request_event" {
 		src.requestRun = true
 	}
 	if base := prBaseSHAFromEventPath(getenv("GITHUB_EVENT_PATH")); base != "" {
