@@ -372,6 +372,8 @@ Repos whose `inference.auth` is `openai-wif` need no fullsend-managed inference 
 
 #### GitLab
 
+Agent jobs that resolve Vault secrets must declare a job-level `FULLSEND_VAULT_ID_TOKEN` whose `aud` is the connection's `vault_audience`; see the [`connections` forge support note](../../reference/config-reference.md#connections).
+
 **Target repo CI/CD variables (protected):**
 - `FULLSEND_FORGE_TOKEN` — Project access token for bot identity at Developer (30) access (stored as protected CI/CD variable). Reduced from Maintainer (40) once poller state moved onto unprotected poll-state branches (#7381).
 

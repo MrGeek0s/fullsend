@@ -1034,7 +1034,8 @@ The runner also enforces the trusted-revision rule itself, before it requests
 an OIDC token: the merged `connections` and `secrets` must equal what the
 trusted revision of the `.fullsend` directory declares. The trusted revision
 is read from git objects: the checkout's `HEAD` for an ordinary run, or the
-base commit from the event payload for a pull or merge request run. Any
+base commit for a pull or merge request run (from the GitHub event payload, or
+GitLab's `CI_MERGE_REQUEST_DIFF_BASE_SHA` variable). Any
 difference (an added or replaced connection, changed `vault_secrets`, a
 removed Vault selection, or a `connection: native` reset) fails the run. When
 no trusted revision is available (the directory is not a git checkout, or a

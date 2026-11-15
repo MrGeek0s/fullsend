@@ -41,7 +41,8 @@ type tirithPolicySource struct {
 // dispatch workflows set. Review and fix runs on GitHub set PR_NUMBER and
 // GITHUB_PR_URL; GitLab merge request jobs set MR_IID or the CI merge request
 // variables. The base SHA is read from the GitHub event payload, directly or
-// from the dispatch workflow's event_payload input.
+// from the dispatch workflow's event_payload input, or from GitLab's
+// CI_MERGE_REQUEST_DIFF_BASE_SHA variable.
 func tirithPolicySourceFromEnv(getenv func(string) string) tirithPolicySource {
 	src := tirithPolicySource{}
 	for _, name := range []string{"PR_NUMBER", "GITHUB_PR_URL", "MR_IID", "CI_MERGE_REQUEST_IID"} {
@@ -55,6 +56,15 @@ func tirithPolicySourceFromEnv(getenv func(string) string) tirithPolicySource {
 	if base := prBaseSHAFromEventPath(getenv("GITHUB_EVENT_PATH")); base != "" {
 		src.requestRun = true
 		src.baseSHA = base
+	}
+	// GitLab merge request pipelines carry the base commit in a predefined
+	// CI variable set by GitLab. It is only a fallback: a GitHub event
+	// payload base wins.
+	if base := strings.TrimSpace(getenv("CI_MERGE_REQUEST_DIFF_BASE_SHA")); base != "" {
+		src.requestRun = true
+		if src.baseSHA == "" {
+			src.baseSHA = base
+		}
 	}
 	return src
 }

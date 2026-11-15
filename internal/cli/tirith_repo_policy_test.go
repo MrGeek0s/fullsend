@@ -160,6 +160,17 @@ func TestTirithPolicySourceFromEnv(t *testing.T) {
 	src = tirithPolicySourceFromEnv(env(map[string]string{"GITHUB_EVENT_PATH": dispatch}))
 	assert.Equal(t, tirithPolicySource{requestRun: true, baseSHA: base}, src)
 
+	// GitLab merge request pipelines supply the base commit through a CI
+	// variable; a GitHub event payload base takes precedence.
+	src = tirithPolicySourceFromEnv(env(map[string]string{"CI_MERGE_REQUEST_DIFF_BASE_SHA": " " + base + " "}))
+	assert.Equal(t, tirithPolicySource{requestRun: true, baseSHA: base}, src)
+	other := strings.Repeat("d", 40)
+	src = tirithPolicySourceFromEnv(env(map[string]string{
+		"GITHUB_EVENT_PATH":              direct,
+		"CI_MERGE_REQUEST_DIFF_BASE_SHA": other,
+	}))
+	assert.Equal(t, tirithPolicySource{requestRun: true, baseSHA: base}, src)
+
 	issue := filepath.Join(dir, "issue.json")
 	require.NoError(t, os.WriteFile(issue, []byte(`{"issue":{"number":1}}`), 0o644))
 	assert.Equal(t, tirithPolicySource{}, tirithPolicySourceFromEnv(env(map[string]string{"GITHUB_EVENT_PATH": issue})))

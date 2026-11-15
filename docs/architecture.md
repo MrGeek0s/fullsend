@@ -170,11 +170,15 @@ repo baseline and overrides)
   and settings, while `secrets` entries select a connection (native when
   omitted). A Vault connection has an address and JWT role/audience, defaulting
   to `fullsend-runner` and `https://fullsend.sh/vault`; secret paths are ordered
-  and templated from trusted repository context. Connection definitions and
-  secret entries, including source selection and path order, are not
-  restricted client-side by event or workflow type; the Vault role's WIF
-  bound claims and policy admit only trusted Fullsend workflows, as the mint
-  does. Fullsend validates
+  and templated from trusted repository context. Only trusted
+  configuration defines connections and secret sources: before requesting an
+  OIDC token, the runner enforces the ADR 0155 trusted-revision rule
+  client-side, requiring the merged connections and secrets to match the
+  trusted revision (`HEAD`, or the request's base commit for a pull or merge
+  request run), and it fails closed on any difference or when no trusted
+  revision is available. Resolution is not restricted client-side by event
+  or workflow type; the Vault role's WIF bound claims and policy admit only
+  trusted Fullsend workflows, as the mint does. Fullsend validates
   and encodes every path component and validates the completed relative KV API
   path before access. Vault access uses job OIDC/WIF. Native remains the
   default only when no Vault connection is selected;
